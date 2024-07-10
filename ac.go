@@ -20,6 +20,10 @@ const (
 	failState int = -1
 )
 
+var (
+	ErrEmptyKeywords = errors.New("empty keywords to build")
+)
+
 // Ac result shape of AhoCorasick
 type Ac struct {
 	doubleArrayTrie
@@ -64,7 +68,7 @@ func BuildFromFile(inputfile string) (*Ac, error) {
 		keywords = append(keywords, []rune(keyword))
 	}
 	if len(keywords) == 0 {
-		return nil, errors.New("Empty keywords to build")
+		return nil, ErrEmptyKeywords
 	}
 	ac := &Ac{}
 	ac.buildTrie(keywords)
@@ -74,7 +78,7 @@ func BuildFromFile(inputfile string) (*Ac, error) {
 // Build a ahocorasick based on double array trie
 func Build(keywords []string) (*Ac, error) {
 	if len(keywords) == 0 {
-		return nil, errors.New("Empty keywords to build")
+		return nil, ErrEmptyKeywords
 	}
 	kws := make([][]rune, len(keywords))
 	for k, v := range keywords {
@@ -122,10 +126,8 @@ func (k dartsKeySlice) Less(i, j int) bool {
 			return false
 		}
 	}
-	if len(k[i]) < len(k[j]) {
-		return true
-	}
-	return false
+
+	return len(k[i]) < len(k[j])
 }
 
 func (k dartsKeySlice) Swap(i, j int) {
@@ -139,7 +141,6 @@ type dartsBuild struct {
 	output       []int
 	keys         dartsKeySlice
 	nextCheckPos int
-	used         []bool
 }
 
 func (darts *dartsBuild) resize(newSize int) {
@@ -205,7 +206,7 @@ func (darts *dartsBuild) getBegin(parent *node) int {
 		if len(darts.dat.base) <= pos {
 			darts.resize(pos + initSize)
 		}
-		if 0 != darts.dat.base[pos] {
+		if darts.dat.base[pos] != 0 {
 			continue
 		} else if !first {
 			darts.nextCheckPos = pos
@@ -218,7 +219,7 @@ func (darts *dartsBuild) getBegin(parent *node) int {
 
 		for _, v := range parent.children {
 			index := begin + int(v.code)
-			if 0 != darts.dat.base[index] {
+			if darts.dat.base[index] != 0 {
 				goto next
 			}
 		}
