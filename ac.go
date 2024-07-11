@@ -418,3 +418,55 @@ func (ac *Ac) MultiPatternHit(content []rune) bool {
 	}
 	return false
 }
+
+func (ac *Ac) MultiPatternHitSearch(content []rune) (bool, Hit) {
+	state := rootIndex
+	for k, v := range content {
+	start:
+		if ac.getState(state, v) == failState {
+			state = ac.fail[state]
+			goto start
+		} else {
+			state = ac.getState(state, v)
+			if val := ac.output[state]; val != 0 {
+				return true, Hit{
+					Begin: k - val + 1,
+					End:   k,
+					Value: content[k-val+1 : k+1],
+				}
+			}
+		}
+	}
+	return false, Hit{}
+}
+
+type StreamSearchCall = func(content []rune) (hit bool, truncable bool, val Hit)
+
+func (ac *Ac) MultiPatternStreamHit() StreamSearchCall {
+	// steam text total length
+	var textLen int
+	var state int = rootIndex
+
+	return func(content []rune) (bool, bool, Hit) {
+		// accumulates the length of the text
+		defer func() { textLen += len(content) }()
+
+		for k, v := range content {
+		start:
+			if ac.getState(state, v) == failState {
+				state = ac.fail[state]
+				goto start
+			} else {
+				state = ac.getState(state, v)
+				if val := ac.output[state]; val != 0 {
+					return true, state == 0, Hit{
+						Begin: (k + textLen) - val + 1,
+						End:   k + textLen,
+					}
+				}
+			}
+		}
+
+		return false, state == 0, Hit{}
+	}
+}
